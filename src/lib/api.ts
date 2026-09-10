@@ -25,16 +25,39 @@ async function request<T>(
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
 
-  const res = await fetch(`${baseUrl()}${path}`, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-    cache: opts.cache ?? "no-store",
-    ...(opts.revalidate !== undefined ? { next: { revalidate: opts.revalidate } } : {}),
-  });
+  const url = `${baseUrl()}${path}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      cache: opts.cache ?? "no-store",
+      ...(opts.revalidate !== undefined ? { next: { revalidate: opts.revalidate } } : {}),
+    });
+  } catch (err) {
+    console.error(`[api] ${method} ${url} — falha de rede`, err);
+    throw new ApiError(
+      `Nao consegui alcancar a API (${baseUrl()}). Verifique API_BASE_URL.`,
+      0,
+    );
+  }
 
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw toApiError(res.status, data);
+  const raw = await res.text();
+  let data: unknown = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    data = {};
+  }
+
+  if (!res.ok) {
+    console.error(
+      `[api] ${method} ${url} -> ${res.status}`,
+      raw.slice(0, 300).replace(/\s+/g, " "),
+    );
+    throw toApiError(res.status, data);
+  }
   return data as T;
 }
 

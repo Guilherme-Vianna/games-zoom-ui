@@ -46,6 +46,7 @@ export async function registerAction(_prev: FormState, formData: FormData): Prom
       nonce,
     };
   } catch (err) {
+    console.error("[registerAction]", err);
     return {
       error: err instanceof ApiError ? err.message : "Nao foi possivel criar a conta.",
       nonce,

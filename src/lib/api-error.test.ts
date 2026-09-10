@@ -15,19 +15,28 @@ describe("toApiError", () => {
     );
   });
 
-  it("fallback para 502/503", () => {
+  it("401/403 sem corpo -> aponta para API_BASE_URL / protecao de deploy", () => {
+    expect(toApiError(401, {}).message).toMatch(/API_BASE_URL/);
+    expect(toApiError(403, null).message).toMatch(/recusou a conexao/i);
+  });
+
+  it("404 sem corpo -> rota nao encontrada", () => {
+    expect(toApiError(404, {}).message).toMatch(/Rota nao encontrada/i);
+  });
+
+  it("502/503 -> indisponivel", () => {
     expect(toApiError(502, {}).message).toMatch(/indispon/i);
   });
 
-  it("fallback generico para 500", () => {
-    expect(toApiError(500, null).message).toMatch(/servidor/i);
+  it("500 sem corpo -> erro no servidor com status", () => {
+    expect(toApiError(500, null).message).toMatch(/HTTP 500/);
   });
 
-  it("fallback generico para 4xx sem corpo", () => {
-    expect(toApiError(400, {}).message).toBe("Nao foi possivel completar a acao.");
+  it("4xx generico inclui o status", () => {
+    expect(toApiError(422, {}).message).toBe("Nao foi possivel completar a acao (HTTP 422).");
   });
 
   it("ignora error nao-string", () => {
-    expect(toApiError(400, { error: 123 }).message).toBe("Nao foi possivel completar a acao.");
+    expect(toApiError(400, { error: 123 }).message).toContain("HTTP 400");
   });
 });
