@@ -6,23 +6,31 @@ import { cn } from "@/lib/utils";
 
 export function TabNav({
   tabs,
+  param = "tab",
+  clearParams = ["page"],
 }: {
   tabs: { value: string; label: string; badge?: number }[];
+  param?: string;
+  /** params removidos ao trocar de aba (default: zera a paginacao) */
+  clearParams?: string[];
 }) {
   const pathname = usePathname();
   const params = useSearchParams();
-  const active = params.get("tab") ?? tabs[0]?.value;
+  const active = params.get(param) ?? tabs[0]?.value;
 
   return (
-    <div className="flex gap-1 rounded-lg bg-surface-2 p-1">
+    <div className="flex flex-wrap gap-1 rounded-lg bg-surface-2 p-1">
       {tabs.map((t) => {
         const isActive = active === t.value;
-        const qs = new URLSearchParams();
-        if (t.value !== tabs[0]?.value) qs.set("tab", t.value);
+        const next = new URLSearchParams(params.toString());
+        for (const c of clearParams) next.delete(c);
+        if (t.value === tabs[0]?.value) next.delete(param);
+        else next.set(param, t.value);
+        const qs = next.toString();
         return (
           <Link
             key={t.value}
-            href={`${pathname}${qs.toString() ? `?${qs}` : ""}`}
+            href={qs ? `${pathname}?${qs}` : pathname}
             scroll={false}
             className={cn(
               "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors",

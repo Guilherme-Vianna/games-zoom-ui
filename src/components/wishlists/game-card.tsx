@@ -42,13 +42,21 @@ export function GameCard({
         </a>
 
         <div className="flex items-center gap-2 text-sm">
-          {discount ? (
-            <span className="rounded bg-success/20 px-1.5 py-0.5 text-xs font-semibold text-success">
-              {discount}
+          {item.releaseStatus === "unreleased" ? (
+            <span className="rounded bg-primary/20 px-1.5 py-0.5 text-xs font-semibold text-primary">
+              Em breve
             </span>
-          ) : null}
-          {original ? <span className="text-muted line-through">{original}</span> : null}
-          <span className="font-semibold">{formatPrice(item.priceOverview, item.isFree)}</span>
+          ) : (
+            <>
+              {discount ? (
+                <span className="rounded bg-success/20 px-1.5 py-0.5 text-xs font-semibold text-success">
+                  {discount}
+                </span>
+              ) : null}
+              {original ? <span className="text-muted line-through">{original}</span> : null}
+              <span className="font-semibold">{formatPrice(item.priceOverview, item.isFree)}</span>
+            </>
+          )}
         </div>
 
         <div className="mt-1 flex items-center justify-between text-xs text-muted">

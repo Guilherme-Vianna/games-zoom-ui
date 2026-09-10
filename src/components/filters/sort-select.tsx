@@ -18,6 +18,7 @@ export function SortSelect() {
           const next = new URLSearchParams(params.toString());
           if (e.target.value === DEFAULT_SORT) next.delete("sort");
           else next.set("sort", e.target.value);
+          next.delete("page"); // nova ordenacao volta pra primeira pagina
           router.replace(`${pathname}?${next.toString()}`, { scroll: false });
         }}
         className="h-9 rounded-lg border border-border bg-surface px-2 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"

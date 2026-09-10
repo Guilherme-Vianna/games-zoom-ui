@@ -4,9 +4,11 @@ import { auth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import type {
   InviteState,
+  ItemsPage,
   WishlistAccess,
   WishlistDetail,
   WishlistSummary,
+  WishlistsPage,
 } from "@/lib/types";
 
 async function token(): Promise<string> {
@@ -15,8 +17,27 @@ async function token(): Promise<string> {
   return session.apiToken;
 }
 
-export const getMyWishlists = cache(async (): Promise<WishlistSummary[]> => {
-  const data = await api.get<{ wishlists: WishlistSummary[] }>("/api/wishlists", {
+function qs(params: Record<string, string | number | undefined | null>): string {
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && `${v}` !== "") sp.set(k, `${v}`);
+  }
+  const s = sp.toString();
+  return s ? `?${s}` : "";
+}
+
+/** Listas do usuario, paginadas (busca por nome via `q`). */
+export async function getMyWishlists(
+  opts: { page?: number; q?: string } = {},
+): Promise<WishlistsPage> {
+  return api.get<WishlistsPage>(`/api/wishlists${qs({ page: opts.page, q: opts.q })}`, {
+    token: await token(),
+  });
+}
+
+/** Primeira pagina (ate 100) para a sidebar/layout — dedup por request. */
+export const getSidebarWishlists = cache(async (): Promise<WishlistSummary[]> => {
+  const data = await api.get<WishlistsPage>("/api/wishlists?page=1&pageSize=100", {
     token: await token(),
   });
   return data.wishlists;
@@ -30,6 +51,27 @@ export const getWishlist = cache(
     );
   },
 );
+
+/** Itens de uma lista, paginados e filtrados por aba/busca/ordenacao (no servidor). */
+export async function getWishlistItems(
+  id: string,
+  opts: {
+    status?: "onSale" | "unreleased" | "regular";
+    page?: number;
+    pageSize?: number;
+    q?: string;
+    sort?: string;
+  } = {},
+): Promise<ItemsPage> {
+  const path = `/api/wishlists/${id}/items${qs({
+    status: opts.status,
+    page: opts.page,
+    pageSize: opts.pageSize,
+    q: opts.q,
+    sort: opts.sort,
+  })}`;
+  return api.get<ItemsPage>(path, { token: await token() });
+}
 
 export async function getSharedPreview(shareToken: string): Promise<{
   wishlist: WishlistDetail;

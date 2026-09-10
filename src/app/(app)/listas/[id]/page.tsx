@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
-import { getWishlist } from "@/lib/wishlists";
-import { matchesQuery } from "@/lib/text";
-import { parseSort, sortItems } from "@/lib/sort-items";
+import { getWishlist, getWishlistItems } from "@/lib/wishlists";
+import { DEFAULT_TAB, parseTab, STATUS_TABS } from "@/lib/status-tabs";
 import { Card } from "@/components/ui/card";
+import { Pagination } from "@/components/ui/pagination";
 import { AddGameForm } from "@/components/wishlists/add-game-form";
 import { GameCard } from "@/components/wishlists/game-card";
 import { DeleteWishlistButton } from "@/components/wishlists/delete-wishlist-button";
@@ -17,15 +17,21 @@ import { InvitesPanel } from "@/components/wishlists/invites-panel";
 
 export const dynamic = "force-dynamic";
 
+const EMPTY_LABELS: Record<string, string> = {
+  normal: "Nenhum jogo a preco normal por aqui.",
+  promocao: "Nenhum jogo em promocao agora.",
+  "em-breve": "Nenhum jogo nao lancado na lista.",
+};
+
 export default async function WishlistPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; q?: string; sort?: string }>;
+  searchParams: Promise<{ tab?: string; q?: string; sort?: string; page?: string }>;
 }) {
   const { id } = await params;
-  const { tab = "jogos", q = "", sort } = await searchParams;
+  const { tab = DEFAULT_TAB, q = "", sort, page } = await searchParams;
 
   let data;
   try {
@@ -39,10 +45,38 @@ export default async function WishlistPage({
   const session = await auth();
   const viewerId = session?.user?.id;
   const isOwner = access.role === "owner";
-  const showAccess = isOwner && tab === "acessos";
+  const counts = wishlist.counts ?? { onSale: 0, unreleased: 0, regular: 0 };
 
-  const filtered = wishlist.items.filter((i) => matchesQuery(i.title, q));
-  const items = sortItems(filtered, parseSort(sort));
+  const parsed = parseTab(tab);
+  const showAccess = isOwner && parsed.kind === "acessos";
+  const tabValue = parsed.kind === "status" ? parsed.value : "acessos";
+
+  const tabs = [
+    ...STATUS_TABS.map((t) => ({
+      value: t.value,
+      label: t.label,
+      badge:
+        t.status === "onSale"
+          ? counts.onSale
+          : t.status === "unreleased"
+            ? counts.unreleased
+            : counts.regular,
+    })),
+    ...(isOwner
+      ? [{ value: "acessos", label: "Acessos", badge: wishlist.collaborators.length }]
+      : []),
+  ];
+
+  const pageNum = Math.max(1, Number(page) || 1);
+  const itemsPage =
+    parsed.kind === "status"
+      ? await getWishlistItems(id, {
+          status: parsed.status,
+          q: q || undefined,
+          sort: sort || undefined,
+          page: pageNum,
+        })
+      : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -51,7 +85,7 @@ export default async function WishlistPage({
           <h1 className="text-xl font-semibold">{wishlist.name}</h1>
           <p className="text-sm text-muted">
             {isOwner ? "Sua lista" : `Lista de ${wishlist.ownerName ?? "outro"}`} ·{" "}
-            {wishlist.items.length} {wishlist.items.length === 1 ? "jogo" : "jogos"}
+            {wishlist.itemCount} {wishlist.itemCount === 1 ? "jogo" : "jogos"}
             {wishlist.collaborators.length > 0
               ? ` · ${wishlist.collaborators.length + 1} pessoas`
               : ""}
@@ -63,18 +97,7 @@ export default async function WishlistPage({
         </div>
       </div>
 
-      {isOwner ? (
-        <TabNav
-          tabs={[
-            { value: "jogos", label: "Jogos", badge: wishlist.items.length },
-            {
-              value: "acessos",
-              label: "Acessos",
-              badge: wishlist.collaborators.length,
-            },
-          ]}
-        />
-      ) : null}
+      <TabNav tabs={tabs} />
 
       {showAccess ? (
         <>
@@ -85,7 +108,7 @@ export default async function WishlistPage({
           />
           <InvitesPanel wishlistId={wishlist.id} invites={wishlist.invites} />
         </>
-      ) : (
+      ) : itemsPage ? (
         <>
           {access.canAddItems ? (
             <Card className="flex flex-col gap-3">
@@ -94,36 +117,37 @@ export default async function WishlistPage({
             </Card>
           ) : null}
 
-          {wishlist.items.length > 0 ? (
+          {wishlist.itemCount > 0 ? (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <SearchField placeholder="Buscar jogo na lista..." />
               <SortSelect />
             </div>
           ) : null}
 
-          {wishlist.items.length === 0 ? (
+          {itemsPage.items.length === 0 ? (
             <Card className="text-center text-sm text-muted">
-              Nenhum jogo ainda. Cole o link da Steam de um jogo acima.
-            </Card>
-          ) : items.length === 0 ? (
-            <Card className="text-center text-sm text-muted">
-              Nenhum jogo encontrado para &ldquo;{q}&rdquo;.
+              {q
+                ? `Nenhum jogo encontrado para "${q}".`
+                : (EMPTY_LABELS[tabValue] ?? "Nenhum jogo ainda.")}
             </Card>
           ) : (
-            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {items.map((item) => (
-                <li key={item.id}>
-                  <GameCard
-                    item={item}
-                    wishlistId={wishlist.id}
-                    canRemove={isOwner || item.addedById === viewerId}
-                  />
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {itemsPage.items.map((item) => (
+                  <li key={item.id}>
+                    <GameCard
+                      item={item}
+                      wishlistId={wishlist.id}
+                      canRemove={isOwner || item.addedById === viewerId}
+                    />
+                  </li>
+                ))}
+              </ul>
+              <Pagination page={itemsPage.page} totalPages={itemsPage.totalPages} />
+            </>
           )}
         </>
-      )}
+      ) : null}
     </div>
   );
 }
