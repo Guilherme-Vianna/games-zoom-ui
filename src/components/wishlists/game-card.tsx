@@ -1,6 +1,11 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
+import { keyPriceBadge } from "@/lib/key-price";
 import { discountLabel, formatPrice, originalPrice } from "@/lib/price";
 import type { WishlistItem } from "@/lib/types";
+import { GameModal } from "@/components/wishlists/game-modal";
 import { RemoveGameButton } from "@/components/wishlists/remove-game-button";
 
 export function GameCard({
@@ -12,12 +17,19 @@ export function GameCard({
   wishlistId: string;
   canRemove: boolean;
 }) {
+  const [open, setOpen] = useState(false);
   const discount = discountLabel(item.priceOverview);
   const original = originalPrice(item.priceOverview);
+  const keyBadge = keyPriceBadge(item);
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface">
-      <a href={item.storeUrl} target="_blank" rel="noreferrer" className="block">
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="block w-full text-left"
+        aria-label={`Ver ${item.title}`}
+      >
         {item.imageUrl ? (
           <Image
             src={item.imageUrl}
@@ -30,16 +42,15 @@ export function GameCard({
         ) : (
           <div className="aspect-[460/215] w-full bg-surface-2" />
         )}
-      </a>
+      </button>
       <div className="flex flex-col gap-2 p-3">
-        <a
-          href={item.storeUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="line-clamp-2 font-medium hover:text-primary"
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="line-clamp-2 text-left font-medium hover:text-primary"
         >
           {item.title}
-        </a>
+        </button>
 
         <div className="flex items-center gap-2 text-sm">
           {item.releaseStatus === "unreleased" ? (
@@ -59,6 +70,10 @@ export function GameCard({
           )}
         </div>
 
+        {keyBadge ? (
+          <p className="text-xs font-medium text-primary">🔑 {keyBadge}</p>
+        ) : null}
+
         <div className="mt-1 flex items-center justify-between text-xs text-muted">
           <span>por {item.addedByName}</span>
           {canRemove ? (
@@ -66,6 +81,15 @@ export function GameCard({
           ) : null}
         </div>
       </div>
+
+      {open ? (
+        <GameModal
+          item={item}
+          wishlistId={wishlistId}
+          canRemove={canRemove}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

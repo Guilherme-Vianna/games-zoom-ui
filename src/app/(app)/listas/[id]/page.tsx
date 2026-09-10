@@ -12,6 +12,7 @@ import { LeaveWishlistButton } from "@/components/wishlists/leave-wishlist-butto
 import { TabNav } from "@/components/wishlists/tab-nav";
 import { SearchField } from "@/components/filters/search-field";
 import { SortSelect } from "@/components/filters/sort-select";
+import { RefreshListButton } from "@/components/wishlists/refresh-list-button";
 import { AccessPanel } from "@/components/wishlists/access-panel";
 import { InvitesPanel } from "@/components/wishlists/invites-panel";
 
@@ -131,7 +132,10 @@ export default async function WishlistPage({
           {wishlist.itemCount > 0 ? (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <SearchField placeholder="Buscar jogo na lista..." />
-              <SortSelect />
+              <div className="flex items-center gap-2">
+                <RefreshListButton wishlistId={wishlist.id} />
+                <SortSelect />
+              </div>
             </div>
           ) : null}
 

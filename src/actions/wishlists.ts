@@ -5,7 +5,8 @@ import { redirect, unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { api, ApiError } from "@/lib/api";
-import type { WishlistSummary } from "@/lib/types";
+import type { GameDetail, WishlistSummary } from "@/lib/types";
+import { refreshGame, refreshWishlist } from "@/lib/wishlists";
 import { summarizeAddResult, type SkipReason } from "@/lib/add-game-result";
 
 export type FormState = { error?: string; success?: string; nonce?: number };
@@ -164,4 +165,42 @@ export async function revokeInviteAction(
   }
   revalidatePath(`/listas/${wishlistId}`);
   return { ok: true };
+}
+
+/** Atualiza um jogo (Steam + ofertas de chave) sob demanda — usado ao abrir o modal. */
+export async function refreshGameAction(
+  steamAppId: number,
+): Promise<{ ok: boolean; game?: GameDetail; error?: string }> {
+  try {
+    const game = await refreshGame(steamAppId);
+    return { ok: true, game };
+  } catch (err) {
+    unstable_rethrow(err);
+    return {
+      ok: false,
+      error: err instanceof ApiError ? err.message : "Nao foi possivel atualizar o jogo.",
+    };
+  }
+}
+
+/** Atualiza todos os jogos da lista. Qualquer membro. */
+export async function refreshListAction(
+  wishlistId: string,
+): Promise<{ ok: boolean; summary?: string; error?: string }> {
+  try {
+    const r = await refreshWishlist(wishlistId);
+    const done = r.steamRefreshed + r.keysRefreshed === 0
+      ? "Nada novo"
+      : `${r.steamRefreshed} jogos e ${r.keysRefreshed} ofertas atualizados`;
+    const parts = [done];
+    if (r.steamPending > 0) parts.push(`${r.steamPending} ainda pendentes (clique de novo)`);
+    revalidatePath(`/listas/${wishlistId}`);
+    return { ok: true, summary: parts.join(" · ") };
+  } catch (err) {
+    unstable_rethrow(err);
+    return {
+      ok: false,
+      error: err instanceof ApiError ? err.message : "Nao foi possivel atualizar a lista.",
+    };
+  }
 }
