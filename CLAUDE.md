@@ -75,7 +75,8 @@ junto com a implementacao.
 - `src/lib/wishlists.ts` — leitura: `getMyWishlists({page,q})` (paginado),
   `getSidebarWishlists()` (page 1, cache), `getWishlist(id)` (metadados + `counts`, **sem
   `items`**), `getWishlistItems(id, {status,page,pageSize,q,sort})` (itens paginados),
-  `getSharedPreview`. `api.put` disponivel para `/me/notification-settings`.
+  `getSharedPreview`; `refreshGame(steamAppId)` / `refreshWishlist(id)` (refresh sob demanda).
+  `api.put` disponivel para `/me/notification-settings`.
 - Server actions em `src/actions/` fazem as escritas e `revalidatePath`.
 - `API_BASE_URL` (env, server-only) aponta para o `games-zoom-api`.
 
@@ -122,6 +123,25 @@ redireciona para `/login?next=<rota>`.
   para o `status` da API. Badges vem de `wishlist.counts` (`{onSale,unreleased,regular}`).
 - Jogo gratuito conta como "Preco normal". Jogo `releaseStatus: "unreleased"` mostra badge
   "Em breve" no `GameCard` no lugar do preco.
+
+## Modal do jogo + ofertas de chave
+
+- `GameCard` agora e client: clicar na imagem/titulo abre `<GameModal>` (`game-modal.tsx`,
+  drawer no padrao do `mobile-header` — overlay `fixed`, trava scroll, fecha no ESC/backdrop).
+  O card **nao** leva mais direto pra Steam (o link Steam esta dentro do modal).
+- Ao **abrir** o modal, dispara `refreshGameAction(steamAppId)` uma vez (atualiza Steam +
+  ofertas de chave sem esperar o cron) e re-renderiza com o jogo fresco.
+- Ofertas de chave vem do `Game` (agregadas via GG.deals no backend): `keyKeyshop`,
+  `keyRetail`, `keyHistoricalKeyshop` (`{ cents, formatted } | null`), `keyDealsUrl`.
+  `src/lib/key-price.ts` (`bestKeyOffer`/`keyPriceBadge`, testado) monta o badge do card
+  ("🔑 Chave a partir de R$ X"). O link "ver todas as ofertas" abre a pagina do GG.deals.
+
+## Botao de refresh da lista
+
+- `<RefreshListButton>` (`refresh-list-button.tsx`) no header da lista de jogos → server
+  action `refreshListAction(wishlistId)` → `POST /api/wishlists/:id/refresh` → `toast` com o
+  resumo + `router.refresh()`. Qualquer membro. A Steam e limitada a 40 jogos/clique
+  (`steamPending` no resultado avisa pra clicar de novo); as chaves atualizam todas.
 
 ## Configuracoes de notificacao
 

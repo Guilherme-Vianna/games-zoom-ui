@@ -3,6 +3,7 @@ import { cache } from "react";
 import { auth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import type {
+  GameDetail,
   InviteState,
   ItemsPage,
   WishlistAccess,
@@ -10,6 +11,14 @@ import type {
   WishlistSummary,
   WishlistsPage,
 } from "@/lib/types";
+
+export type WishlistRefreshSummary = {
+  keysRefreshed: number;
+  keysFailed: number;
+  steamRefreshed: number;
+  steamFailed: number;
+  steamPending: number;
+};
 
 async function token(): Promise<string> {
   const session = await auth();
@@ -71,6 +80,23 @@ export async function getWishlistItems(
     sort: opts.sort,
   })}`;
   return api.get<ItemsPage>(path, { token: await token() });
+}
+
+/** Atualiza um jogo agora (Steam + ofertas de chave). Devolve o jogo fresco. */
+export async function refreshGame(steamAppId: number): Promise<GameDetail> {
+  const data = await api.post<{ game: GameDetail }>(
+    `/api/games/${steamAppId}/refresh`,
+    undefined,
+    { token: await token() },
+  );
+  return data.game;
+}
+
+/** Atualiza todos os jogos da lista (chaves + fatia da Steam). */
+export async function refreshWishlist(id: string): Promise<WishlistRefreshSummary> {
+  return api.post<WishlistRefreshSummary>(`/api/wishlists/${id}/refresh`, undefined, {
+    token: await token(),
+  });
 }
 
 export async function getSharedPreview(shareToken: string): Promise<{
