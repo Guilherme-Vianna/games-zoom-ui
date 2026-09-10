@@ -30,6 +30,7 @@ export function SearchField({
       const next = new URLSearchParams(params.toString());
       if (value.trim()) next.set(paramName, value.trim());
       else next.delete(paramName);
+      next.delete("page"); // nova busca volta pra primeira pagina
       router.replace(`${pathname}?${next.toString()}`, { scroll: false });
     }, 250);
     return () => clearTimeout(t);

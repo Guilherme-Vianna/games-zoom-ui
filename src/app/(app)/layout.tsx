@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { getMyWishlists } from "@/lib/wishlists";
+import { getSidebarWishlists } from "@/lib/wishlists";
 import { SidebarContent } from "@/components/layout/sidebar-content";
 import { MobileHeader } from "@/components/layout/mobile-header";
 
@@ -10,7 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   let lists: { id: string; name: string; itemCount: number; isOwner?: boolean }[] = [];
   try {
-    lists = (await getMyWishlists()).map((w) => ({
+    lists = (await getSidebarWishlists()).map((w) => ({
       id: w.id,
       name: w.name,
       itemCount: w.itemCount,

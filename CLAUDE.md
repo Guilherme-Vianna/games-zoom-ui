@@ -10,6 +10,12 @@ Sempre que o usuario passar uma diretriz importante (regra de negocio, padrao de
 UI/UX, convencao de codigo que vale daqui pra frente), registrar neste arquivo na
 secao mais relevante — nao so aplicar na tarefa da vez.
 
+## Politica de testes
+
+- **Sem testes E2E.** Cobertura = **testes unitarios `vitest` das funcoes puras**
+  (`src/lib/*.test.ts`). Componentes/pages/actions -> smoke manual rodando a app.
+- Gate: `pnpm test` + `pnpm exec tsc --noEmit` + `pnpm build`.
+
 ## Testes unitarios (OBRIGATORIO para logica pura)
 
 Toda funcao com logica nao-trivial (parsing/validacao de input, formatacao de
@@ -66,8 +72,10 @@ junto com a implementacao.
 - `src/lib/api.ts` — wrapper `fetch` server-only. `api.get/post/del`, injeta o Bearer,
   converte erro em `ApiError` (via `toApiError`, puro). **So use no servidor**
   (server components, server actions, route handlers).
-- `src/lib/wishlists.ts` — funcoes de leitura (`getMyWishlists`, `getWishlist`,
-  `getSharedPreview`) que pegam o token da sessao e chamam a API.
+- `src/lib/wishlists.ts` — leitura: `getMyWishlists({page,q})` (paginado),
+  `getSidebarWishlists()` (page 1, cache), `getWishlist(id)` (metadados + `counts`, **sem
+  `items`**), `getWishlistItems(id, {status,page,pageSize,q,sort})` (itens paginados),
+  `getSharedPreview`. `api.put` disponivel para `/me/notification-settings`.
 - Server actions em `src/actions/` fazem as escritas e `revalidatePath`.
 - `API_BASE_URL` (env, server-only) aponta para o `games-zoom-api`.
 
@@ -77,8 +85,9 @@ junto com a implementacao.
 |---|---|---|---|
 | `/` | — | sim | redireciona para `/listas` |
 | `/login`, `/registro`, `/verificar` | `(auth)` | nao | fluxo de conta |
-| `/listas` | `(app)` | sim | minhas listas + criar + busca (`?q=`) |
-| `/listas/[id]` | `(app)` | sim | `?tab=jogos` (busca `?q=` + ordenacao `?sort=`) / `?tab=acessos` (so dono) |
+| `/listas` | `(app)` | sim | minhas listas + criar, paginadas (`?page=`, busca `?q=`) |
+| `/listas/[id]` | `(app)` | sim | `?tab=normal\|promocao\|em-breve` (busca `?q=`, ordenacao `?sort=`, `?page=`) / `?tab=acessos` (so dono) |
+| `/configuracoes` | `(app)` | sim | preferencias de notificacao (opt-in do digest + hora) |
 | `/entrar/[token]` | — | opcional | previa via convite + entrar na lista |
 
 Rotas publicas estao em `PUBLIC_PREFIXES` no `proxy.ts`. Rota protegida sem sessao
@@ -90,8 +99,44 @@ redireciona para `/login?next=<rota>`.
   drawer) no mobile (`lg:hidden`). Ambos renderizam `<SidebarContent>` (client,
   `usePathname` p/ item ativo) — logo, "Minhas listas", a lista das wishlists do
   usuario (nome + contagem), e no rodape nome + "Sair".
-- O layout busca `getMyWishlists()` (envolto em `cache()` do React — dedupe com a page).
+- O layout busca `getSidebarWishlists()` (envolto em `cache()` do React). Rodape tem
+  link "Configuracoes".
   Se a API cair, a sidebar renderiza sem as listas (nao quebra).
+
+## Paginacao (URL e a fonte da verdade)
+
+- `<Pagination page totalPages paramName="page">` (`src/components/ui/pagination.tsx`,
+  client) so renderiza `<Link>` — `?page=` na URL manda; pagina 1 nao coloca o param.
+  Sequencia de numeros via `pageRange` (`src/lib/pagination-range.ts`, testado).
+- Trocar aba / ordenacao / busca **zera `?page=`** (`TabNav clearParams`, `SortSelect`
+  e `SearchField` fazem `next.delete("page")`).
+- A API pagina por offset e devolve `{ page, pageSize, total, totalPages }`. Dados via
+  `getMyWishlists({page,q})` e `getWishlistItems(id, {status,page,q,sort})`
+  (`src/lib/wishlists.ts`). A sidebar usa `getSidebarWishlists()` (page 1, `pageSize:100`,
+  `cache()`).
+
+## Abas de status na lista
+
+- `/listas/[id]?tab=` -> `normal` (default, sem param) | `promocao` | `em-breve` |
+  `acessos` (so dono). `src/lib/status-tabs.ts` (`parseTab`/`tabToStatus`, testado) mapeia
+  para o `status` da API. Badges vem de `wishlist.counts` (`{onSale,unreleased,regular}`).
+- Jogo gratuito conta como "Preco normal". Jogo `releaseStatus: "unreleased"` mostra badge
+  "Em breve" no `GameCard` no lugar do preco.
+
+## Configuracoes de notificacao
+
+- `/configuracoes` (`(app)` group) -> `getNotificationSettings()`
+  (`src/lib/notification-settings.ts`, `server-only`) + `<NotificationSettingsForm>`.
+- Opt-in do resumo de promocoes + hora de envio (0-23, **horario de Brasilia** — o backend
+  faz o match). Opcoes de hora em `src/lib/delivery-hour.ts` (testado). Segue a convencao
+  server-action / `useFormToast` / `nonce`. Action: `updateNotificationSettingsAction`.
+
+## Escalabilidade
+
+- Nenhuma pagina baixa listas inteiras: `/listas` e `/listas/[id]` sao paginadas no
+  servidor; o filtro/ordenacao da lista de detalhe roda no Prisma (API), nao em memoria.
+- A previa `/entrar/[token]` ainda filtra/ordena em memoria (cap de 60 itens na API).
+- `<Image unoptimized>` nos banners da Steam evita custo de otimizacao na Vercel.
 
 ## Busca, filtro e ordenacao (URL e a fonte da verdade)
 

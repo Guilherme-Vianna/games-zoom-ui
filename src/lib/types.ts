@@ -1,5 +1,7 @@
 import type { PriceOverview } from "@/lib/price";
 
+export type ItemStatus = "onSale" | "unreleased" | "regular";
+
 export type WishlistItem = {
   id: string;
   steamAppId: number;
@@ -8,6 +10,12 @@ export type WishlistItem = {
   storeUrl: string;
   isFree: boolean;
   priceOverview: PriceOverview | null;
+  /** Campos do cache compartilhado (Game), atualizados pelo job horario. */
+  releaseStatus: "released" | "unreleased";
+  onSale: boolean;
+  discountPercent: number;
+  status: ItemStatus;
+  lastSyncedAt: string | null;
   addedById: string;
   addedByName: string;
   createdAt: string;
@@ -40,6 +48,8 @@ export type WishlistInvite = {
   createdAt: string;
 };
 
+export type ItemStatusCounts = { onSale: number; unreleased: number; regular: number };
+
 export type WishlistSummary = {
   id: string;
   name: string;
@@ -55,5 +65,26 @@ export type WishlistSummary = {
 export type WishlistDetail = Omit<WishlistSummary, "collaborators"> & {
   collaborators: Collaborator[];
   invites: WishlistInvite[];
+  /** Preenchido apenas na previa de convite (`/shared`); vazio no detalhe normal. */
   items: WishlistItem[];
+  counts?: ItemStatusCounts;
+};
+
+export type PageMeta = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
+
+export type WishlistsPage = PageMeta & { wishlists: WishlistSummary[] };
+
+export type ItemsPage = PageMeta & {
+  items: WishlistItem[];
+  counts: ItemStatusCounts;
+};
+
+export type NotificationSettings = {
+  saleDigestEnabled: boolean;
+  deliveryHour: number;
 };

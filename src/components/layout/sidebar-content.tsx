@@ -58,7 +58,13 @@ export function SidebarContent({
       ) : null}
 
       <div className="mt-auto border-t border-border pt-3">
-        <p className="truncate px-2 pb-2 text-sm text-muted">{userName}</p>
+        <NavItem
+          href="/configuracoes"
+          active={pathname === "/configuracoes"}
+          onNavigate={onNavigate}
+          label="Configuracoes"
+        />
+        <p className="mt-2 truncate px-2 pb-2 text-sm text-muted">{userName}</p>
         <form action={signOutAction}>
           <Button variant="ghost" className="w-full justify-start text-sm">
             Sair
