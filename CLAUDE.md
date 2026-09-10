@@ -124,6 +124,13 @@ redireciona para `/login?next=<rota>`.
 - `src/lib/steam-url.ts` — `extractSteamAppId` faz a validacao **client-side** do que
   o usuario cola (feedback imediato). A validacao que vale e a da API. Mantido em
   sincronia com `parseSteamAppId` do `games-zoom-api` (mesmos casos de teste).
+  `splitGameInput` espelha o `parseAddItemsInput` da API (sem separador -> 1 entrada;
+  virgula/`;`/quebra de linha -> lista) — usado so pro hint de contagem no botao.
+- **Adicionar jogo por nome**: o campo aceita link/AppID **ou** nomes separados por
+  virgula. A API resolve cada nome via busca na loja da Steam. `addGameAction` manda
+  `{ input }` cru e recebe `{ added, skipped }`; `summarizeAddResult`
+  (`src/lib/add-game-result.ts`, puro + testado) monta o toast citando o que nao entrou
+  (`duplicate` / `not_found` / `steam_error`).
 - `src/lib/price.ts` — formatacao do `priceOverview` (snapshot vindo da API):
   `formatPrice` (gratuito / indisponivel / com desconto), `discountLabel`, `originalPrice`.
 - Banners de jogos vem da CDN da Steam — hosts liberados em `next.config.ts`

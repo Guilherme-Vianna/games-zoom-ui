@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractSteamAppId, looksLikeSteamInput } from "./steam-url";
+import { extractSteamAppId, looksLikeSteamInput, splitGameInput } from "./steam-url";
 
 describe("extractSteamAppId", () => {
   it("aceita AppID puro", () => {
@@ -34,5 +34,24 @@ describe("looksLikeSteamInput", () => {
   });
   it("false para entrada invalida", () => {
     expect(looksLikeSteamInput("nao")).toBe(false);
+  });
+});
+
+describe("splitGameInput", () => {
+  it("vazio -> []", () => {
+    expect(splitGameInput("   ")).toEqual([]);
+  });
+  it("sem separador -> 1 entrada (link com querystring intacto)", () => {
+    expect(splitGameInput("https://store.steampowered.com/app/570/?snr=1_7_7")).toEqual([
+      "https://store.steampowered.com/app/570/?snr=1_7_7",
+    ]);
+  });
+  it("quebra por virgula, ; e quebra de linha, com trim", () => {
+    expect(splitGameInput("Hades, Celeste\n Katana ZERO ; 730")).toEqual([
+      "Hades",
+      "Celeste",
+      "Katana ZERO",
+      "730",
+    ]);
   });
 });
