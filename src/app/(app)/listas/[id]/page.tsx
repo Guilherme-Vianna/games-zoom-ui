@@ -68,15 +68,22 @@ export default async function WishlistPage({
   ];
 
   const pageNum = Math.max(1, Number(page) || 1);
-  const itemsPage =
-    parsed.kind === "status"
-      ? await getWishlistItems(id, {
-          status: parsed.status,
-          q: q || undefined,
-          sort: sort || undefined,
-          page: pageNum,
-        })
-      : null;
+  let itemsPage: Awaited<ReturnType<typeof getWishlistItems>> | null = null;
+  let itemsError = false;
+  if (parsed.kind === "status") {
+    try {
+      itemsPage = await getWishlistItems(id, {
+        status: parsed.status,
+        q: q || undefined,
+        sort: sort || undefined,
+        page: pageNum,
+      });
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) notFound();
+      console.error("[listas/[id]] falha ao carregar itens", err);
+      itemsError = true;
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -108,6 +115,10 @@ export default async function WishlistPage({
           />
           <InvitesPanel wishlistId={wishlist.id} invites={wishlist.invites} />
         </>
+      ) : itemsError ? (
+        <Card className="text-center text-sm text-muted">
+          Nao consegui carregar os jogos agora. Recarregue a pagina em instantes.
+        </Card>
       ) : itemsPage ? (
         <>
           {access.canAddItems ? (
