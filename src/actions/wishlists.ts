@@ -6,6 +6,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { api, ApiError } from "@/lib/api";
 import type { WishlistSummary } from "@/lib/types";
+import { summarizeAddResult, type SkipReason } from "@/lib/add-game-result";
 
 export type FormState = { error?: string; success?: string; nonce?: number };
 
@@ -49,16 +50,15 @@ export async function addGameAction(
 ): Promise<FormState> {
   const nonce = Date.now();
   const input = String(formData.get("input") ?? "").trim();
-  if (!input) return { error: "Cole o link da Steam ou o AppID do jogo.", nonce };
+  if (!input) return { error: "Cole o link da Steam, um AppID ou nomes de jogos.", nonce };
 
   try {
-    const data = await api.post<{ item: { title: string } }>(
-      `/api/wishlists/${wishlistId}/items`,
-      { input },
-      { token: await apiToken() },
-    );
+    const data = await api.post<{
+      added: { title: string }[];
+      skipped: { term: string; reason: SkipReason }[];
+    }>(`/api/wishlists/${wishlistId}/items`, { input }, { token: await apiToken() });
     revalidatePath(`/listas/${wishlistId}`);
-    return { success: `"${data.item.title}" adicionado a lista.`, nonce };
+    return { success: summarizeAddResult(data.added, data.skipped ?? []), nonce };
   } catch (err) {
     return {
       error: err instanceof ApiError ? err.message : "Nao foi possivel adicionar o jogo.",

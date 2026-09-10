@@ -27,3 +27,18 @@ export function extractSteamAppId(input: string | null | undefined): number | nu
 export function looksLikeSteamInput(input: string): boolean {
   return extractSteamAppId(input) !== null;
 }
+
+/**
+ * Quebra o campo "adicionar jogo" em entradas individuais, espelhando o
+ * `parseAddItemsInput` do games-zoom-api: sem separador -> 1 entrada; com
+ * virgula / `;` / quebra de linha -> lista. Usado so para o hint de contagem.
+ */
+export function splitGameInput(input: string): string[] {
+  const value = input.trim();
+  if (!value) return [];
+  if (!/[\n,;]/.test(value)) return [value];
+  return value
+    .split(/[\n,;]+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
